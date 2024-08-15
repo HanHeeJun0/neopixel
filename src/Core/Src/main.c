@@ -25,22 +25,18 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include <string.h>
+#include <stdbool.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-TIM_HandleTypeDef htim3;
-DMA_HandleTypeDef hdma_tim3_ch3_trig;
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
-#define LED   8
-#define HIGH  40
-#define LOW   19
 
 /* USER CODE END PD */
 
@@ -53,8 +49,22 @@ DMA_HandleTypeDef hdma_tim3_ch3_trig;
 
 /* USER CODE BEGIN PV */
 
-uint8_t timerBuf[LED * 24 + 48] = {0,};
-uint8_t tempBuf[LED * 24 + 48] = {0,};
+#define LED   21
+#define LED_BRIGHTNESS 125 // 0~255
+#define HIGH  40
+#define LOW   19
+
+bool is_init = false;
+
+typedef struct
+{
+  uint16_t LED_CNT;
+} ws2812_t;
+
+static uint8_t led_buf[280 + 24*LED];
+
+ws2812_t ws2812;
+extern TIM_HandleTypeDef htim3;
 
 /* USER CODE END PV */
 
@@ -66,6 +76,138 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+bool ws2812Init(void)
+{
+  memset(led_buf, 0, sizeof(led_buf));
+
+  is_init = true;
+
+
+  return true;
+}
+
+void ws2812Begin(uint32_t led_cnt)
+{
+  ws2812.LED_CNT = led_cnt;
+
+
+  HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_3, (uint32_t *)led_buf, (280 + 24 * led_cnt) * 1);
+}
+
+void ws2812SetColor(uint32_t index, uint8_t red, uint8_t green, uint8_t blue)
+{
+  uint8_t r_bit[8];
+  uint8_t g_bit[8];
+  uint8_t b_bit[8];
+
+  uint32_t offset;
+
+
+  for (int i=0; i<8; i++)
+  {
+    if (red & (1<<7))
+    {
+      r_bit[i] = HIGH;
+    }
+    else
+    {
+      r_bit[i] = LOW;
+    }
+    red <<= 1;
+
+    if (green & (1<<7))
+    {
+      g_bit[i] = HIGH;
+    }
+    else
+    {
+      g_bit[i] = LOW;
+    }
+    green <<= 1;
+
+    if (blue & (1<<7))
+    {
+      b_bit[i] = HIGH;
+    }
+    else
+    {
+      b_bit[i] = LOW;
+    }
+    blue <<= 1;
+  }
+
+  offset = 280;
+
+    memcpy(&led_buf[offset + index*24 + 8*0], g_bit, 8*1);
+    memcpy(&led_buf[offset + index*24 + 8*1], r_bit, 8*1);
+    memcpy(&led_buf[offset + index*24 + 8*2], b_bit, 8*1);
+}
+
+void offLed() {
+	for(int i=0; i<21; i++)
+	{
+		ws2812SetColor(i, 0, 0, 0);
+	}
+}
+
+void rgbLed() {
+	for(int i=0; i<3; i++)
+	{
+		for(int j=0; j<21; j++)
+		{
+			if(i==0) {
+			  ws2812SetColor(j, 255, 0, 0);
+			} else if(i==1) {
+			  ws2812SetColor(j, 0, 255, 0);
+			} else if(i==2) {
+			  ws2812SetColor(j, 0, 0, 255);
+			}
+			HAL_Delay(20);
+		}
+	}
+	offLed();
+}
+
+void sirenLed() {
+	for(int n=0; n<10; n++)
+	{
+		for(int i=0; i<8; i++)
+		{
+			ws2812SetColor(i, 255, 0, 0);
+		}
+		for(int i=8; i<21; i++)
+		{
+			ws2812SetColor(i, 0, 0, 255);
+		}
+		HAL_Delay(100);
+		for(int i=0; i<8; i++)
+		{
+			ws2812SetColor(i, 0, 0, 255);
+		}
+		for(int i=8; i<21; i++)
+		{
+			ws2812SetColor(i, 255, 0, 0);
+		}
+		HAL_Delay(100);
+	}
+	offLed();
+}
+
+void blinkLed() {
+	for(int n=0; n<3; n++)
+	{
+		for(int i=0; i<21; i++)
+		{
+			ws2812SetColor(i, 255, 255, 255);
+		}
+		HAL_Delay(100);
+		offLed();
+		HAL_Delay(100);
+	}
+}
+
+
 
 /* USER CODE END 0 */
 
@@ -102,8 +244,8 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
-  for(int i=0; i<LED*24; i++) timerBuf[i] = HIGH;
-  HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_3, (unint32_t)timerBuf, LED*24+48);
+  ws2812Init();
+  ws2812Begin(21);
 
   /* USER CODE END 2 */
 
@@ -114,6 +256,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  blinkLed();
+	  rgbLed();
+	  sirenLed();
   }
   /* USER CODE END 3 */
 }
