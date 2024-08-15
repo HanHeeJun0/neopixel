@@ -30,10 +30,17 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
+TIM_HandleTypeDef htim3;
+DMA_HandleTypeDef hdma_tim3_ch3_trig;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+#define LED   8
+#define HIGH  40
+#define LOW   19
 
 /* USER CODE END PD */
 
@@ -45,6 +52,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+
+uint8_t timerBuf[LED * 24 + 48] = {0,};
+uint8_t tempBuf[LED * 24 + 48] = {0,};
 
 /* USER CODE END PV */
 
@@ -91,6 +101,9 @@ int main(void)
   MX_DMA_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+
+  for(int i=0; i<LED*24; i++) timerBuf[i] = HIGH;
+  HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_3, (unint32_t)timerBuf, LED*24+48);
 
   /* USER CODE END 2 */
 
